@@ -49,15 +49,29 @@ trait Authorizable[S <: Subject] { self: SecureActionBuilder[S] =>
       def parser = bodyParser
       def apply(request: Request[A]) = try {
         authenticator(request) flatMap {
-          case (Some(subject), optSuperSubject) =>
+          case (Some(subject), optSuperSubject) => try {
             val sreq = secureRequest(request, subject, optSuperSubject)
-            if (authorizer(subject))
+            if (authorizer(subject)) try {
               invokeBlock(sreq, authorized)
-            else
+            } catch {
+              case e :SubjectHasInvalidAuthority =>
+                invokeBlock(sreq, authorized)
+                  .map(_.flashing("_SECURE_ACTION_" -> "SubjectHasInvalidAuthority"))
+            } else {
               invokeBlock(sreq, unauthorized)
+            }
+          } catch {
+            case e :InvalidSubject =>
+              invokeBlock(request, unauthenticated)
+                .map(_.flashing("_SECURE_ACTION_" -> "InvalidSubject"))
+          }
           case _ => invokeBlock(request, unauthenticated).map(session.endSu(_)(request))
         }
       } catch {
+        case e: SubjectHasInvalidAuthority =>
+          throw new RuntimeException("Throwing SubjectHasInvalidAuthority is not allowed in this block")
+        case e: InvalidSubject =>
+          throw new RuntimeException("Throwing InvalidSubject is not allowed in this block")
         // NotImplementedError is not caught by NonFatal, wrap it
         case e: NotImplementedError => throw new RuntimeException(e)
         // LinkageError is similarly harmless in Play Framework, since automatic reloading could easily trigger it
