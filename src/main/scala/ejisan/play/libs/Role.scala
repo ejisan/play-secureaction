@@ -9,8 +9,12 @@ class Role private (
 ) extends AnyVal {
   override def toString: String = s"Role(${flag})"
   /** Returns having role. */
-  def hasAny(role: Role): Boolean = (flag & role.flag) > 0
-  def hasAll(role: Role): Boolean = (flag ^ role.flag) == 0
+  def hasAny(roles: Role*): Boolean = roles.forall(r =>(flag & r.flag) > 0)
+  def hasAnySingular(roles: Role*): Boolean = roles forall { role =>
+    assert(Role.count(role.flag) == 1, "Role must be single flag")
+    (flag & role.flag) > 0
+  }
+  def is(role: Role): Boolean = (flag ^ role.flag) == 0
   /** Adds role with [Role] object. */
   def +(role: Role): Role = new Role(flag | role.flag)
   /** Removes role */
@@ -34,7 +38,7 @@ object Role {
     }
   }
 
-  private[this] def count(bits: Long): Int = {
+  private def count(bits: Long): Int = {
     var bs = (bits & 0x55555555l) + (bits >> 1l & 0x55555555l)
     bs = (bs & 0x33333333l) + (bs >> 2l & 0x33333333l);
     bs = (bs & 0x0f0f0f0fl) + (bs >> 4l & 0x0f0f0f0fl);
@@ -45,7 +49,7 @@ object Role {
   def apply(): Role = new Role(1)
 
   def apply(flag: Int): Role = {
-    assert(count(flag) == 1, "It must be single flag")
+    assert(count(flag) == 1, "Role must be single flag")
     new Role(flag)
 
   }
