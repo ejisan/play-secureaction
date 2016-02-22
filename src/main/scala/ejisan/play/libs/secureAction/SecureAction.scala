@@ -27,6 +27,13 @@ trait SecureActionBuilder[S <: Subject] { self =>
 
   protected trait SessionUtils {
 
+    def isStarted[A](implicit request: Request[A]): Future[Option[SRequest[A]]] = authenticator(request) map {
+      case (optSubject, optSuperSubject) =>
+      optSubject map { subject =>
+        secureRequest(request, subject, optSuperSubject)
+      }
+    }
+
     def start(key: Any)(result: => Result)(implicit request: RequestHeader): Result =
       end(result).withSession((authenticator.key -> key.toString))
 
@@ -34,7 +41,6 @@ trait SecureActionBuilder[S <: Subject] { self =>
       start(subject.sessionId)(result)
 
     def end(result: => Result)(implicit request: RequestHeader): Result = {
-      println("end session")
       result.removingFromSession(authenticator.superKey).removingFromSession(authenticator.key)
     }
 
