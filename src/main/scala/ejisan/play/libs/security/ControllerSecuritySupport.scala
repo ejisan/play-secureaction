@@ -2,6 +2,7 @@ package ejisan.play.libs.security
 
 import scala.concurrent.Future
 import play.api.mvc.{ Controller, Request, Result }
+import play.api.Configuration
 import ejisan.play.libs.secureAction._
 
 trait SubjectResolver[S <: Subject] {
@@ -9,7 +10,7 @@ trait SubjectResolver[S <: Subject] {
   def apply(key1: String, optKey2: Option[String] = None): Future[(Option[S], Option[S])]
 }
 
-class DefaultAuthenticator[S <: Subject](subjectResolver: SubjectResolver[S])
+class DefaultAuthenticator[S <: Subject](subjectResolver: SubjectResolver[S], val conf: Configuration)
   extends Authenticator[S] {
   def apply(username: String, password: String): Future[Option[S]] =
     subjectResolver(username, password)
@@ -22,6 +23,7 @@ class DefaultAuthenticator[S <: Subject](subjectResolver: SubjectResolver[S])
 
 trait ControllerSecuritySupport[S <: Subject] { self: Controller =>
   val subjectResolver: SubjectResolver[S]
+  val configuration: Configuration
   val SecureAction: SecureActionBuilder[S]
   def onUnauthenticated[A](request: Request[A]): Future[Result]
 }
